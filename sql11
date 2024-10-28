@@ -1,0 +1,22 @@
+SELECT
+    'CREATE EXTERNAL TABLE ' + sch.name + '.' + tbl.name + ' (' + 
+    STRING_AGG(col.name + ' ' + typ.name + 
+        CASE 
+            WHEN typ.name IN ('varchar', 'char', 'varbinary') 
+                THEN '(' + IIF(col.max_length = -1, 'MAX', CAST(col.max_length AS VARCHAR(10))) + ')'
+            WHEN typ.name IN ('decimal', 'numeric') 
+                THEN '(' + CAST(col.precision AS VARCHAR(10)) + ',' + CAST(col.scale AS VARCHAR(10)) + ')'
+            ELSE ''
+        END, ', ') 
+    + ') WITH (' + ext.location + ', FILE_FORMAT = ' + fmt.name + ');' AS create_statement
+FROM
+    sys.external_tables AS tbl
+    INNER JOIN sys.schemas AS sch ON tbl.schema_id = sch.schema_id
+    INNER JOIN sys.external_columns AS col ON tbl.object_id = col.object_id
+    INNER JOIN sys.types AS typ ON col.user_type_id = typ.user_type_id
+    INNER JOIN sys.external_data_sources AS ext ON tbl.data_source_id = ext.data_source_id
+    INNER JOIN sys.external_file_formats AS fmt ON tbl.file_format_id = fmt.file_format_id
+WHERE
+    sch.name = 'aaa' AND tbl.name = 'bbbb'
+GROUP BY
+    sch.name, tbl.name, ext.location, fmt.name;
