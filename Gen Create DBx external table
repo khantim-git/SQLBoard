@@ -1,0 +1,25 @@
+SELECT 'CREATE TABLE ' || owner || '.' || table_name || ' (' ||
+       LISTAGG(column_name || ' ' || 
+               CASE 
+                   WHEN data_type = 'NUMBER' THEN 'NUMERIC' || 
+                       CASE 
+                           WHEN data_precision IS NOT NULL AND data_scale IS NOT NULL THEN '(' || data_precision || ',' || data_scale || ')'
+                           WHEN data_precision IS NOT NULL THEN '(' || data_precision || ')'
+                           ELSE ''
+                       END
+                   WHEN data_type = 'DATE' THEN 'DATETIME2'
+                   WHEN data_type = 'VARCHAR2' THEN 'NVARCHAR' || '(' || data_length || ')'
+                   WHEN data_type = 'CLOB' THEN 'VARCHAR(MAX)' -- Chuyển CLOB thành VARCHAR(MAX)
+                   ELSE data_type ||
+                       CASE 
+                           WHEN data_type IN ('CHAR') THEN '(' || data_length || ')'
+                           ELSE ''
+                       END
+               END, ', ') WITHIN GROUP (ORDER BY column_id) || ', ' || CHR(10) ||
+               '    createdby NVARCHAR2(100), ' || CHR(10) ||
+               '    createddate NVARCHAR(100)' || CHR(10) ||
+               ') ' || CHR(10) ||
+               'WITH (Location = ''path/to/file/*.*'', DATA_SOURCE = [aaa_nnn_nnn], FILE_FORMAT = [Parquet]);' AS create_table_statement
+FROM all_tab_cols
+WHERE table_name = 'EMPLOYEES'
+GROUP BY owner, table_name;
