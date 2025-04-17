@@ -1,0 +1,5 @@
+run_all_sqls_and_write_files(
+    json_path="/mnt/sql/query_list.json",
+    base_output_path="abfss://raw@yourstorageacc.dfs.core.windows.net/exports/",
+    format="parquet"
+)
