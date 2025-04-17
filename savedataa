@@ -1,39 +1,54 @@
 import json
+import os
 
-def run_sql_from_api_name(json_path: str, api_name: str, output_path: str, format: str = "parquet") -> None:
+def run_all_sqls_and_write_files(
+    json_path: str,
+    base_output_path: str,
+    format: str = "parquet"
+) -> None:
     """
-    Reads a list of SQL queries from a JSON file on DBFS, filters by ApiName, runs the sourceSQL, 
-    and saves the result to ADLS.
+    Executes all SQL queries defined in a JSON file and saves each result
+    to a single file named <ApiName>.<format> in the specified ADLS path.
 
     Parameters:
-        json_path (str): Path to the JSON file on DBFS.
-        api_name (str): The ApiName to find the corresponding SQL query (e.g., "ap1").
-        output_path (str): ADLS path where the result should be saved.
-        format (str): Output format ("parquet", "csv", etc.). Default is "parquet".
+        json_path (str): Path to the JSON file on DBFS (e.g. "/mnt/sql/query_list.json").
+        base_output_path (str): Output folder on ADLS (e.g. "abfss://.../exports/").
+        format (str): Output file format ("parquet", "csv", etc.). Default is "parquet".
 
     Returns:
         None
     """
     try:
-        # Load the JSON from DBFS
         with open(f"/dbfs{json_path}", "r") as file:
-            query_list = json.load(file)
+            data = json.load(file)
+            query_list = data.get("API", [])
 
-        # Find matching entry by ApiName
-        match = next((item for item in query_list if item.get("ApiName") == api_name), None)
-        if not match or not match.get("sourceSQL"):
-            raise ValueError(f"No sourceSQL found for ApiName '{api_name}'.")
+        if not query_list:
+            raise ValueError("No 'API' entries found in the JSON.")
 
-        query = match["sourceSQL"]
-        print(f"📌 Executing query for ApiName '{api_name}':\n{query}")
+        for item in query_list:
+            api_name = item.get("ApiName")
+            query = item.get("sourceSQL")
 
-        # Execute the query
-        df = spark.sql(query)
+            if not api_name or not query:
+                print(f"⚠️ Skipping entry due to missing ApiName or sourceSQL: {item}")
+                continue
 
-        # Save result to ADLS
-        df.write.mode("overwrite").format(format).save(output_path)
+            print(f"📌 Running query for ApiName '{api_name}'...")
 
-        print(f"✅ Query result saved to: {output_path}")
+            try:
+                df = spark.sql(query)
+
+                # Create full file path
+                output_file_path = os.path.join(base_output_path, f"{api_name}.{format}")
+
+                # Use coalesce(1) to ensure single file output
+                df.coalesce(1).write.mode("overwrite").format(format).save(output_file_path)
+
+                print(f"✅ Saved result to file: {output_file_path}")
+
+            except Exception as qe:
+                print(f"❌ Error processing '{api_name}': {qe}")
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"❌ General error: {e}")
