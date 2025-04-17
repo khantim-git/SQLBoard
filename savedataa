@@ -1,0 +1,39 @@
+import json
+
+def run_sql_from_api_name(json_path: str, api_name: str, output_path: str, format: str = "parquet") -> None:
+    """
+    Reads a list of SQL queries from a JSON file on DBFS, filters by ApiName, runs the sourceSQL, 
+    and saves the result to ADLS.
+
+    Parameters:
+        json_path (str): Path to the JSON file on DBFS.
+        api_name (str): The ApiName to find the corresponding SQL query (e.g., "ap1").
+        output_path (str): ADLS path where the result should be saved.
+        format (str): Output format ("parquet", "csv", etc.). Default is "parquet".
+
+    Returns:
+        None
+    """
+    try:
+        # Load the JSON from DBFS
+        with open(f"/dbfs{json_path}", "r") as file:
+            query_list = json.load(file)
+
+        # Find matching entry by ApiName
+        match = next((item for item in query_list if item.get("ApiName") == api_name), None)
+        if not match or not match.get("sourceSQL"):
+            raise ValueError(f"No sourceSQL found for ApiName '{api_name}'.")
+
+        query = match["sourceSQL"]
+        print(f"📌 Executing query for ApiName '{api_name}':\n{query}")
+
+        # Execute the query
+        df = spark.sql(query)
+
+        # Save result to ADLS
+        df.write.mode("overwrite").format(format).save(output_path)
+
+        print(f"✅ Query result saved to: {output_path}")
+
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
