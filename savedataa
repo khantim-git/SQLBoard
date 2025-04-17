@@ -49,4 +49,16 @@ def run_all_sqls_and_write_files(
 
                 # Rename part file to <ApiName>.<format>
                 files = dbutils.fs.ls(temp_folder)
-                part_file = [f.path for f in files if f.name.startswith_
+                part_file = [f.path for f in files if f.name.startswith("part-")][0]
+                final_path = f"{base_output_path}{api_name}.{format}"
+
+                dbutils.fs.cp(part_file, final_path)
+                dbutils.fs.rm(temp_folder, recurse=True)
+
+                print(f"✅ Saved file: {final_path}")
+
+            except Exception as qe:
+                print(f"❌ Error running query for '{api_name}': {qe}")
+
+    except Exception as e:
+        print(f"❌ General error: {e}")
