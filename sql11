@@ -1,14 +1,1 @@
-SELECT DISTINCT
-       EXTRACT(YEAR FROM work_date) AS work_year,
-       EXTRACT(MONTH FROM work_date) AS work_month,
-       work_date
-FROM (
-    SELECT work_date,
-           EXTRACT(YEAR FROM work_date) AS work_year,
-           EXTRACT(MONTH FROM work_date) AS work_month,
-           ROW_NUMBER() OVER (PARTITION BY EXTRACT(YEAR FROM work_date), EXTRACT(MONTH FROM work_date)
-                              ORDER BY work_date) AS rn
-    FROM working_date
-)
-WHERE rn = 4
-ORDER BY work_year, work_month;
+SELECT from_json('{"$date":111122223333}', 'STRUCT<$date: BIGINT>') AS parsed
